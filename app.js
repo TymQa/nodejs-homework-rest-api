@@ -1,25 +1,42 @@
-const express = require('express')
-const logger = require('morgan')
-const cors = require('cors')
+const express = require('express');
+const app = express();
+const cors = require('cors');
+const logger = require('morgan');
 
-const contactsRouter = require('./routes/api/contacts')
+const dbConnection = require('./db/dbConnection');
+const router = require('./router/router');
+const errorsHandler = require('./middlewares/errors');
+const notFound = require('./middlewares/notFound');
 
-const app = express()
+const port = process.env.PORT || 5000;
+const isDev = process.env.NODE_ENV === 'development';
 
-const formatsLogger = app.get('env') === 'development' ? 'dev' : 'short'
+if (isDev) app.use(logger('dev'));
 
-app.use(logger(formatsLogger))
-app.use(cors())
-app.use(express.json())
+dbConnection();
 
-app.use('/api/contacts', contactsRouter)
+app.use(cors('*'));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-app.use((req, res) => {
-  res.status(404).json({ message: 'Not found' })
-})
+app.get('/', function(req, res) {
+    res.send('DataBase of Contacts');
+});
 
-app.use((err, req, res, next) => {
-  res.status(500).json({ message: err.message })
-})
+app.use('/api', router);
+app.use('*', notFound);
+app.use(errorsHandler);
 
-module.exports = app
+app.use('*', (req, res) => {
+    res.status(404).json({
+        get_contacts: 'http://localhost:3000/api/contacts',
+        create_contacts: 'http://localhost:3000/api/contacts',
+        find_contact: 'http://localhost:3000/api/contacts/:contactId',
+        delete_contacts: 'http://localhost:3000/api/contacts/:contactId',
+        update_contacts: 'http://localhost:3000/api/contacts/:contactId',
+    });
+});
+
+app.listen(port, () => {
+    console.log(`Server started on ${port}`);
+});
